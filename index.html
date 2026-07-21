@@ -476,8 +476,12 @@
                 <span class="pay-value"><span class="currency">$</span><span id="overtimePay">0.00</span></span>
             </div>
             <div class="pay-item" style="grid-column: 1 / -1; margin-top: 0.2rem;">
-                <span class="pay-label" style="font-size:0.9rem;">📊 Total differential earned</span>
-                <span class="pay-value" style="font-size:2.6rem; color:#003349;"><span class="currency">$</span><span id="totalPay">0.00</span></span>
+                <span class="pay-label" style="font-size:0.9rem;">📊 Differential pay earned</span>
+                <span class="pay-value" style="font-size:2.6rem; color:#003349;"><span class="currency">$</span><span id="differentialPay">0.00</span></span>
+            </div>
+            <div class="pay-item" style="grid-column: 1 / -1; margin-top: 0.25rem;">
+                <span class="pay-label" style="font-size:0.9rem;">💵 Total pay</span>
+                <span class="pay-value" style="font-size:2.2rem; color:#003349;"><span class="currency">$</span><span id="totalPay">0.00</span></span>
             </div>
         </div>
 
@@ -572,8 +576,10 @@
             gpsLastPosition: null,   // Last GPS coordinate used for distance calculations.
             totalStandard: 0,        // The running standard pay total that is displayed.
             totalOvertime: 0,        // The running overtime pay total that is displayed.
+            totalDifferential: 0,    // The running differential pay total that is displayed.
             accumulatedStandard: 0,   // Pay totals carried forward across restarted sessions.
             accumulatedOvertime: 0,
+            accumulatedDifferential: 0,
             accumulatedTotal: 0,
             animationFrame: null,    // The browser frame handle used for the live clock animation.
             historyEntries: [],      // Completed shifts kept for the history tab.
@@ -589,6 +595,7 @@
         const secondsBadge = document.getElementById('secondsBadge');
         const standardPayEl = document.getElementById('standardPay');
         const overtimePayEl = document.getElementById('overtimePay');
+        const differentialPayEl = document.getElementById('differentialPay');
         const totalPayEl = document.getElementById('totalPay');
         const rateInput = document.getElementById('rateInput');
         const resetBtn = document.getElementById('resetBtn');
@@ -706,8 +713,8 @@
             state.activeDifferentials = [];
             state.accumulatedStandard = 0;
             state.accumulatedOvertime = 0;
+            state.accumulatedDifferential = 0;
             state.accumulatedTotal = 0;
-            state.historyEntries = [];
             state.historySessionStartedAt = null;
             state.lastResetAt = Date.now();
             saveHistory();
@@ -731,7 +738,7 @@
             return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
         }
 
-        // Compute pay based on elapsed time and the combined effective rate.
+        // Compute base hourly pay based on elapsed time and the base rate.
         function computePay(elapsedSeconds, rate) {
             if (elapsedSeconds < 0) elapsedSeconds = 0;
             const threshold = state.overtimeThreshold;
@@ -750,6 +757,42 @@
             return { standardPay, overtimePay, totalPay: standardPay + overtimePay };
         }
 
+        function getDifferentialRateTotal() {
+            return state.activeDifferentials.reduce((sum, name) => {
+                if (name === 'personal vehicle') return sum;
+                const match = DIFFERENTIALS.find(item => item.name === name);
+                return sum + (match ? match.rate : 0);
+            }, 0);
+        }
+
+        function computeDifferentialPay(elapsedSeconds) {
+            if (elapsedSeconds < 0) elapsedSeconds = 0;
+            const differentialRate = getDifferentialRateTotal();
+            if (!differentialRate) {
+                return { standardPay: 0, overtimePay: 0, totalPay: 0 };
+            }
+
+            const threshold = state.overtimeThreshold;
+            let standardSec = 0, overtimeSec = 0;
+
+            if (elapsedSeconds <= threshold) {
+                standardSec = elapsedSeconds;
+                overtimeSec = 0;
+            } else {
+                standardSec = threshold;
+                overtimeSec = elapsedSeconds - threshold;
+            }
+
+            const standardPay = (standardSec / 3600) * differentialRate;
+            const overtimePay = (overtimeSec / 3600) * differentialRate * state.overtimeMultiplier;
+            return { standardPay, overtimePay, totalPay: standardPay + overtimePay };
+        }
+
+        function mergeDifferentialIntoHourlyPay(amount) {
+            if (amount <= 0) return;
+            state.accumulatedDifferential += amount;
+        }
+
         // Calculate elapsed time by adding the saved time to the active run's current progress.
         function getElapsedSeconds() {
             if (!state.isRunning || state.startTime === null) {
@@ -763,12 +806,7 @@
         function getEffectiveRate() {
             const baseRate = parseFloat(rateInput.value);
             const safeBaseRate = isNaN(baseRate) || baseRate < 0 ? 0 : baseRate;
-            const differentialTotal = state.activeDifferentials.reduce((sum, name) => {
-                if (name === 'personal vehicle') return sum;
-                const match = DIFFERENTIALS.find(item => item.name === name);
-                return sum + (match ? match.rate : 0);
-            }, 0);
-            return safeBaseRate + differentialTotal;
+            return safeBaseRate + getDifferentialRateTotal();
         }
 
         function calculateDistanceMiles(lat1, lon1, lat2, lon2) {
@@ -916,11 +954,13 @@
             }
 
             // compute pay
-            const { standardPay, overtimePay, totalPay } = computePay(currentDisplaySec, effectiveRate);
+            const basePay = computePay(currentDisplaySec, rate);
+            const differentialPay = computeDifferentialPay(currentDisplaySec);
             const mileagePay = getPersonalVehiclePay();
-            const runningStandard = state.accumulatedStandard + standardPay;
-            const runningOvertime = state.accumulatedOvertime + overtimePay;
-            const runningTotal = runningStandard + runningOvertime + mileagePay;
+            const runningStandard = state.accumulatedStandard + basePay.standardPay;
+            const runningOvertime = state.accumulatedOvertime + basePay.overtimePay;
+            const runningDifferential = state.accumulatedDifferential + differentialPay.totalPay;
+            const runningTotal = runningStandard + runningOvertime + runningDifferential + mileagePay;
 
             if (mileagePanel) {
                 mileagePanel.hidden = !state.activeDifferentials.includes('personal vehicle');
@@ -935,11 +975,15 @@
             // update pay fields
             standardPayEl.textContent = runningStandard.toFixed(2);
             overtimePayEl.textContent = runningOvertime.toFixed(2);
-            totalPayEl.textContent = runningTotal.toFixed(2);
+            differentialPayEl.textContent = runningDifferential.toFixed(2);
+            if (totalPayEl) {
+                totalPayEl.textContent = runningTotal.toFixed(2);
+            }
 
             // store totals for reset (optional)
             state.totalStandard = runningStandard;
             state.totalOvertime = runningOvertime;
+            state.totalDifferential = runningDifferential;
             state.accumulatedTotal = runningTotal;
         }
 
@@ -983,7 +1027,6 @@
 
         // Reset the timer back to zero while keeping the selected rate settings intact.
         function resetClock() {
-            // NEW: clear the current elapsed time and restart from zero.
             if (state.isRunning || state.elapsedBeforeRun > 0 || state.historySessionStartedAt) {
                 finalizeCurrentSession('manual-reset');
             }
@@ -993,6 +1036,11 @@
             state.gpsStartPosition = null;
             state.gpsLastPosition = null;
             state.milesDriven = 0;
+            state.activeDifferentials = [];
+            state.accumulatedStandard = 0;
+            state.accumulatedOvertime = 0;
+            state.accumulatedDifferential = 0;
+            state.accumulatedTotal = 0;
             state.historySessionStartedAt = null;
             stopGpsTracking();
             if (state.isRunning && !state.animationFrame) {
@@ -1005,7 +1053,6 @@
                 }
             }
 
-            // update rate from input (just in case)
             const rate = parseFloat(rateInput.value);
             if (!isNaN(rate) && rate >= 0) {
                 state.baseRate = rate;
@@ -1033,7 +1080,9 @@
                 applyBtn.addEventListener('click', () => {
                     const index = state.activeDifferentials.indexOf(item.name);
                     if (index >= 0) {
+                        const earnedWhileActive = computeDifferentialPay(getElapsedSeconds()).totalPay;
                         state.activeDifferentials.splice(index, 1);
+                        mergeDifferentialIntoHourlyPay(earnedWhileActive);
                     } else {
                         state.activeDifferentials.push(item.name);
                     }
