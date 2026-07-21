@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Differential Pay Clock · HTML</title>
+    <style>
+        /* The CSS lives in the head so the browser can style the page before it is shown. */
+        /* Global reset and base typography */
+        * {
+            box-sizing: border-box;
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        /* The body is the full-screen canvas that centers the app vertically and horizontally. */
+        body {
+            background: linear-gradient(145deg, #f6f9fc 0%, #e9f0f7 100%);
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1.5rem;
+        }
+        /* The main card is the visual container for the whole calculator and is given a soft glassy look. */
+        .clock-card {
+            max-width: 750px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border-radius: 48px;
+            padding: 2.5rem 2.2rem;
+            box-shadow: 0 25px 45px -12px rgba(0, 20, 40, 0.35),
+                        inset 0 1px 2px rgba(255, 255, 255, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            transition: all 0.2s;
+        }
+        /* The title styling makes the page heading feel clear and prominent. */
+        h1 {
+            font-size: 1.9rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            color: #0b2b3f;
+            margin-top: 0;
+            margin-bottom: 0.3rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        /* The subtitle explains the purpose of the app in a compact way. */
+        .subhead {
+            font-size: 0.95rem;
+            font-weight: 400;
+            color: #2c4a5e;
+            margin-top: -0.1rem;
+            margin-bottom: 2rem;
+            border-left: 3px solid #2b7a8a;
+            padding-left: 0.9rem;
+            background: rgba(43, 122, 138, 0.06);
+            border-radius: 0 12px 12px 0;
+        }
+        /* The main clock display is styled like a digital panel to make the timer feel important. */
+        .clock-display {
+            background: #101f2b;
+            border-radius: 80px;
+            padding: 1.2rem 2rem;
+            margin-bottom: 2.2rem;
+            box-shadow: inset 0 8px 14px rgba(0,0,0,0.5), 0 6px 12px rgba(0,0,0,0.15);
+            border: 1px solid #3f5a68;
+        }
+        .time-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            flex-wrap: wrap;
+            gap: 0.5rem 1rem;
+        }
+        .live-time {
+            font-size: 3.6rem;
+            font-weight: 600;
+            letter-spacing: 2px;
+            color: #b7e4fa;
+            text-shadow: 0 0 6px #49b0d6;
+            font-variant-numeric: tabular-nums;
+            line-height: 1.2;
+        }
+        .seconds-badge {
+            font-size: 1.3rem;
+            font-weight: 400;
+            color: #78b9d4;
+            background: #1d3340;
+            padding: 0.2rem 1rem;
+            border-radius: 40px;
+            letter-spacing: 1px;
+            border: 1px solid #3a5a6b;
+        }
+        /* The pay summary grid groups the standard, overtime, and total results into a neat layout. */
+        .pay-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.2rem 1.5rem;
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            border-radius: 32px;
+            padding: 1.8rem 1.8rem;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            margin-bottom: 2rem;
+        }
+        .pay-item {
+            display: flex;
+            flex-direction: column;
+        }
+        .pay-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: #1f485b;
+            opacity: 0.8;
+        }
+        .pay-value {
+            font-size: 2.2rem;
+            font-weight: 600;
+            color: #03212e;
+            line-height: 1.3;
+            display: flex;
+            align-items: baseline;
+            gap: 0.2rem;
+        }
+        .pay-value small {
+            font-size: 1rem;
+            font-weight: 400;
+            color: #2f5b6e;
+            margin-left: 0.2rem;
+        }
+        .pay-value .currency {
+            font-size: 1.3rem;
+            font-weight: 400;
+            color: #2f5b6e;
+            margin-right: 0.1rem;
+        }
+        .divider {
+            border: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #99bccf, transparent);
+            margin: 0.2rem 0 1.5rem 0;
+        }
+        /* The control bar keeps the rate input and action buttons aligned in one row on larger screens. */
+        .control-bar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem 0.8rem;
+        }
+        .rate-group {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem 1.5rem;
+            flex-wrap: wrap;
+            background: rgba(255,255,255,0.4);
+            padding: 0.5rem 1.2rem 0.5rem 1.5rem;
+            border-radius: 60px;
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            border: 1px solid rgba(255,255,255,0.5);
+        }
+        .rate-label {
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #103542;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+        .rate-input {
+            background: white;
+            border: 1px solid #b8d3e0;
+            border-radius: 40px;
+            padding: 0.3rem 0.8rem;
+            font-size: 1rem;
+            width: 90px;
+            font-weight: 500;
+            color: #03212e;
+            transition: 0.15s;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+        }
+        .rate-input:focus {
+            outline: none;
+            border-color: #1b7b8f;
+            box-shadow: 0 0 0 3px rgba(27, 123, 143, 0.2);
+        }
+        .reset-btn {
+            background: #e3eef5;
+            border: 1px solid #b8cedb;
+            color: #134256;
+            padding: 0.6rem 1.6rem;
+            border-radius: 60px;
+            font-weight: 500;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.15s;
+            backdrop-filter: blur(2px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .reset-btn:hover {
+            background: #d0e5f0;
+            border-color: #7ca6ba;
+            transform: scale(0.97);
+            box-shadow: 0 4px 8px rgba(0, 20, 30, 0.1);
+        }
+        .reset-btn:active {
+            background: #b9d4e3;
+        }
+        .action-group {
+            display: flex;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+        }
+        .action-btn {
+            border: 1px solid #b8cedb;
+            padding: 0.6rem 1.2rem;
+            border-radius: 60px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .action-btn:hover {
+            transform: translateY(-1px);
+        }
+        .start-btn {
+            background: #2d9d78;
+            color: white;
+            border-color: #238766;
+        }
+        .stop-btn {
+            background: #e95d5d;
+            color: white;
+            border-color: #c54a4a;
+        }
+        /* The differential panel is a secondary area for optional rate add-ons. */
+        .differential-panel {
+            margin-top: 1.2rem;
+            padding: 1rem 1.1rem;
+            border-radius: 20px;
+            background: rgba(255,255,255,0.55);
+            border: 1px solid rgba(255,255,255,0.6);
+        }
+        .differential-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #103542;
+            margin-bottom: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .differential-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+        }
+        .differential-item {
+            background: white;
+            border: 1px solid #c6dce6;
+            border-radius: 999px;
+            padding: 0.45rem 0.8rem;
+            font-size: 0.92rem;
+            color: #214856;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.04);
+        }
+        .differential-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+            margin-top: 0.7rem;
+        }
+        .mileage-panel {
+            margin-top: 0.75rem;
+            padding: 0.8rem 0.9rem;
+            border-radius: 16px;
+            background: rgba(255,255,255,0.65);
+            border: 1px solid rgba(255,255,255,0.7);
+        }
+        .mileage-title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #103542;
+            margin-bottom: 0.55rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .mileage-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+        .mileage-field {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            font-size: 0.8rem;
+            color: #214856;
+            font-weight: 600;
+        }
+        .mileage-input {
+            border: 1px solid #b8d3e0;
+            border-radius: 999px;
+            padding: 0.35rem 0.7rem;
+            font-size: 0.95rem;
+            width: 120px;
+            color: #03212e;
+        }
+        .mileage-summary {
+            margin-top: 0.55rem;
+            font-size: 0.9rem;
+            color: #214856;
+            font-weight: 700;
+        }
+        .tab-bar {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .tab-btn {
+            border: 1px solid #c9dce6;
+            background: #f3f7fb;
+            color: #174a5f;
+            border-radius: 999px;
+            padding: 0.45rem 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .tab-btn.active {
+            background: #174a5f;
+            color: white;
+            border-color: #174a5f;
+        }
+        .history-view {
+            margin-top: 0.4rem;
+        }
+        .history-panel {
+            background: rgba(255,255,255,0.58);
+            border: 1px solid rgba(255,255,255,0.65);
+            border-radius: 20px;
+            padding: 1rem 1.1rem;
+        }
+        .history-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: #103542;
+            margin-bottom: 0.35rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .history-note {
+            margin: 0 0 0.9rem 0;
+            font-size: 0.85rem;
+            color: #476b7a;
+        }
+        .history-table-wrap {
+            overflow-x: auto;
+        }
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.86rem;
+            color: #214856;
+        }
+        .history-table th,
+        .history-table td {
+            text-align: left;
+            padding: 0.55rem 0.45rem;
+            border-bottom: 1px solid #d8e6ee;
+            vertical-align: top;
+        }
+        .history-table th {
+            font-weight: 700;
+            color: #103542;
+        }
+        .history-empty {
+            text-align: center;
+            color: #5f7886;
+            padding: 1rem 0;
+        }
+        .apply-btn {
+            background: #103542;
+            color: white;
+            border: 1px solid #103542;
+            border-radius: 999px;
+            padding: 0.45rem 0.8rem;
+            font-size: 0.92rem;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .apply-btn:hover {
+            transform: translateY(-1px);
+            background: #174a5f;
+        }
+        .apply-btn.active {
+            background: #6b757b;
+            border-color: #5b656b;
+            color: #f8fafc;
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.16);
+        }
+        .apply-btn.active:hover {
+            background: #5b656b;
+            transform: none;
+        }
+        .rate-summary {
+            margin-top: 0.6rem;
+            font-size: 0.9rem;
+            color: #214856;
+            font-weight: 600;
+        }
+        .footer-note {
+            margin-top: 1.8rem;
+            font-size: 0.75rem;
+            color: #3a6377;
+            text-align: center;
+            border-top: 1px dashed #b0ccdb;
+            padding-top: 1.2rem;
+            letter-spacing: 0.02em;
+        }
+        /* The responsive media query makes the layout adapt on smaller screens. */
+        @media (max-width: 550px) {
+            .clock-card { padding: 1.8rem 1.2rem; }
+            .live-time { font-size: 2.6rem; }
+            .pay-grid { grid-template-columns: 1fr 1fr; gap: 0.8rem; padding: 1.2rem; }
+            .pay-value { font-size: 1.8rem; }
+            .rate-group { padding: 0.4rem 1rem; }
+        }
+    </style>
+</head>
+<body>
+<!-- The body contains the app shell, which is the visible user interface. -->
+<div class="clock-card">
+    <!-- The heading introduces the calculator and gives it a friendly title. -->
+    <h1>
+        <span>⏱️ Differential Pay</span>
+        <span style="font-size:1rem; font-weight:400; background: #d9e8f0; padding:0.1rem 1rem; border-radius:30px; color:#1d4559;">clock</span>
+    </h1>
+
+    <div class="tab-bar" role="tablist">
+        <button class="tab-btn active" data-view="clock" type="button">Clock</button>
+        <button class="tab-btn" data-view="history" type="button">History</button>
+    </div>
+
+    <div id="clockView">
+        <!-- The subtitle explains the concept of the tool in one sentence. -->
+        <div class="subhead">
+            Standard rate · overtime rate (1.5×) — live differential
+        </div>
+
+        <!-- The main clock is the visual centerpiece of the app. -->
+        <div class="clock-display">
+            <div class="time-row">
+                <span class="live-time" id="liveTimeDisplay">--:--:--</span>
+                <span class="seconds-badge" id="secondsBadge">00</span>
+            </div>
+        </div>
+
+        <!-- The pay summary area shows the calculated values in a compact grid. -->
+        <div class="pay-grid">
+            <div class="pay-item">
+                <span class="pay-label">💰 Standard (straight)</span>
+                <span class="pay-value"><span class="currency">$</span><span id="standardPay">0.00</span></span>
+            </div>
+            <div class="pay-item">
+                <span class="pay-label">⚡ Overtime (1.5×)</span>
+                <span class="pay-value"><span class="currency">$</span><span id="overtimePay">0.00</span></span>
+            </div>
+            <div class="pay-item" style="grid-column: 1 / -1; margin-top: 0.2rem;">
+                <span class="pay-label" style="font-size:0.9rem;">📊 Total differential earned</span>
+                <span class="pay-value" style="font-size:2.6rem; color:#003349;"><span class="currency">$</span><span id="totalPay">0.00</span></span>
+            </div>
+        </div>
+
+        <hr class="divider">
+
+        <!-- The controls area collects the input and action buttons in one place. -->
+        <div class="control-bar">
+            <div class="rate-group">
+                <span class="rate-label">
+                    <span>💵</span> Rate/h
+                </span>
+                <input type="number" id="rateInput" class="rate-input" value="25.00" step="0.50" min="0" />
+                <span style="font-size:0.8rem; color:#285468;">×1.5 OT</span>
+            </div>
+            <!-- NEW: on/off buttons let the user pause or resume the timer. -->
+            <div class="action-group">
+                <button class="action-btn start-btn" id="startBtn">Turn On</button>
+                <button class="action-btn stop-btn" id="stopBtn">Turn Off</button>
+                <button class="reset-btn" id="resetBtn">
+                    <span>↻</span> reset shift
+                </button>
+            </div>
+        </div>
+
+        <!-- The differential panel lists optional pay add-ons and their current effect. -->
+        <div class="differential-panel" aria-live="polite">
+            <div class="differential-title">Differential options</div>
+            <div class="differential-list" id="differentialList"></div>
+            <div class="differential-actions" id="differentialActions"></div>
+            <div class="mileage-panel" id="mileagePanel" hidden>
+                <div class="mileage-title">🚗 Personal vehicle mileage</div>
+                <div class="mileage-controls">
+                    <label class="mileage-field">
+                        <span>Rate / mile</span>
+                        <input type="number" id="mileageRateInput" class="mileage-input" value="0.67" step="0.01" min="0" />
+                    </label>
+                    <label class="mileage-field">
+                        <span>Miles driven</span>
+                        <input type="number" id="milesDrivenInput" class="mileage-input" value="0" step="0.1" min="0" />
+                    </label>
+                </div>
+                <div class="mileage-summary" id="mileagePayLabel">Vehicle pay: $0.00</div>
+                <div class="mileage-summary" id="gpsStatusLabel">GPS: idle</div>
+            </div>
+            <div class="rate-summary" id="effectiveRateLabel">Effective rate: $25.00/hr</div>
+            ⏳ based on elapsed time · overtime rate applies after 8 hours (differential)
+        </div>
+    </div>
+
+    <div id="historyView" class="history-view" hidden>
+        <div class="history-panel">
+            <div class="history-title">Shift history</div>
+            <p class="history-note">Completed shifts are saved here and the data resets after 24 hours.</p>
+            <div class="history-table-wrap">
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>Started</th>
+                            <th>Ended</th>
+                            <th>Duration</th>
+                            <th>Differentials</th>
+                            <th>Std / OT</th>
+                            <th>Total</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    (function() {
+        "use strict";
+
+        // ----- state -----
+        // The state object stores all the live app data in one place so it can be updated consistently.
+        const state = {
+            startTime: null,          // When the current run started, measured with performance.now().
+            elapsedBeforeRun: 0,      // How many seconds were already counted before the timer was started again.
+            isRunning: false,        // Whether the timer is currently active.
+            autoStoppedAtThreshold: false, // Whether the timer has already auto-stopped at the 8-hour limit.
+            baseRate: 25.00,         // The base hourly rate entered by the user.
+            activeDifferentials: [],  // Which differential options are currently applied.
+            overtimeThreshold: 8 * 3600, // The cutoff time for overtime in seconds.
+            overtimeMultiplier: 1.5, // The multiplier used once the overtime threshold is exceeded.
+            mileageRate: 0.67,       // The personal vehicle pay rate per mile.
+            milesDriven: 0,          // The mileage total entered for the personal vehicle differential.
+            gpsWatchId: null,        // Browser geolocation watch handle.
+            gpsStatus: 'idle',       // Current GPS tracking status text.
+            gpsStartPosition: null,  // Starting GPS coordinate for the current trip.
+            gpsLastPosition: null,   // Last GPS coordinate used for distance calculations.
+            totalStandard: 0,        // The running standard pay total that is displayed.
+            totalOvertime: 0,        // The running overtime pay total that is displayed.
+            accumulatedStandard: 0,   // Pay totals carried forward across restarted sessions.
+            accumulatedOvertime: 0,
+            accumulatedTotal: 0,
+            animationFrame: null,    // The browser frame handle used for the live clock animation.
+            historyEntries: [],      // Completed shifts kept for the history tab.
+            historySessionStartedAt: null, // Start timestamp for the current unfinished session.
+            lastResetAt: Date.now(), // Timestamp for the 24-hour reset window.
+            dayMs: 24 * 60 * 60 * 1000,
+            activeView: 'clock',
+        };
+
+        // DOM elements
+        // These references point to the HTML elements that need to be updated or listened to.
+        const liveTimeDisplay = document.getElementById('liveTimeDisplay');
+        const secondsBadge = document.getElementById('secondsBadge');
+        const standardPayEl = document.getElementById('standardPay');
+        const overtimePayEl = document.getElementById('overtimePay');
+        const totalPayEl = document.getElementById('totalPay');
+        const rateInput = document.getElementById('rateInput');
+        const resetBtn = document.getElementById('resetBtn');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const differentialList = document.getElementById('differentialList');
+        const differentialActions = document.getElementById('differentialActions');
+        const effectiveRateLabel = document.getElementById('effectiveRateLabel');
+        const mileagePanel = document.getElementById('mileagePanel');
+        const mileageRateInput = document.getElementById('mileageRateInput');
+        const milesDrivenInput = document.getElementById('milesDrivenInput');
+        const mileagePayLabel = document.getElementById('mileagePayLabel');
+        const gpsStatusLabel = document.getElementById('gpsStatusLabel');
+        const clockView = document.getElementById('clockView');
+        const historyView = document.getElementById('historyView');
+        const tabButtons = Array.from(document.querySelectorAll('.tab-btn'));
+        const historyTableBody = document.getElementById('historyTableBody');
+        const DIFFERENTIALS = [
+            { name: 'cold storage', rate: 7.50 },
+            { name: 'hazardous', rate: 5.00 },
+            { name: 'personal vehicle', rate: 0.708 }
+        ];
+
+        const HISTORY_STORAGE_KEY = 'differential-pay-history';
+        const RESET_STORAGE_KEY = 'differential-pay-last-reset';
+
+        state.historyEntries = loadHistory();
+
+        function loadHistory() {
+            try {
+                const raw = localStorage.getItem(HISTORY_STORAGE_KEY);
+                return raw ? JSON.parse(raw) : [];
+            } catch (error) {
+                return [];
+            }
+        }
+
+        function saveHistory() {
+            localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(state.historyEntries));
+            localStorage.setItem(RESET_STORAGE_KEY, String(state.lastResetAt));
+        }
+
+        function formatDuration(seconds) {
+            const hrs = Math.floor(seconds / 3600);
+            const mins = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${String(hrs).padStart(2, '0')}h ${String(mins).padStart(2, '0')}m ${String(secs).padStart(2, '0')}s`;
+        }
+
+        function setActiveView(view) {
+            state.activeView = view;
+            if (clockView) {
+                clockView.hidden = view !== 'clock';
+            }
+            if (historyView) {
+                historyView.hidden = view !== 'history';
+            }
+            tabButtons.forEach(button => {
+                button.classList.toggle('active', button.dataset.view === view);
+            });
+        }
+
+        function renderHistory() {
+            if (!historyTableBody) return;
+            if (!state.historyEntries.length) {
+                historyTableBody.innerHTML = '<tr><td colspan="6" class="history-empty">No completed shifts yet.</td></tr>';
+                return;
+            }
+            historyTableBody.innerHTML = state.historyEntries.map(entry => `
+                <tr>
+                    <td>${entry.startedAt}</td>
+                    <td>${entry.endedAt}</td>
+                    <td>${entry.durationLabel}</td>
+                    <td>${entry.differentials.length ? entry.differentials.join(', ') : 'none'}</td>
+                    <td>$${entry.standardPay.toFixed(2)} / $${entry.overtimePay.toFixed(2)}</td>
+                    <td>$${entry.totalPay.toFixed(2)}</td>
+                </tr>
+            `).join('');
+        }
+
+        function finalizeCurrentSession(endedBy) {
+            const elapsedSeconds = Math.max(0, getElapsedSeconds());
+            if (elapsedSeconds <= 0) return;
+            const effectiveRate = getEffectiveRate();
+            const pay = computePay(elapsedSeconds, effectiveRate);
+            state.accumulatedStandard += pay.standardPay;
+            state.accumulatedOvertime += pay.overtimePay;
+            state.accumulatedTotal = state.accumulatedStandard + state.accumulatedOvertime;
+            const entry = {
+                id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+                startedAt: new Date(state.historySessionStartedAt || Date.now() - elapsedSeconds * 1000).toLocaleString(),
+                endedAt: new Date().toLocaleString(),
+                durationSeconds: Math.round(elapsedSeconds),
+                durationLabel: formatDuration(Math.round(elapsedSeconds)),
+                standardPay: parseFloat(pay.standardPay.toFixed(2)),
+                overtimePay: parseFloat(pay.overtimePay.toFixed(2)),
+                totalPay: parseFloat(pay.totalPay.toFixed(2)),
+                differentials: [...state.activeDifferentials],
+                endedBy
+            };
+            state.historyEntries.unshift(entry);
+            saveHistory();
+            renderHistory();
+        }
+
+        function resetAllData() {
+            if (state.animationFrame) {
+                cancelAnimationFrame(state.animationFrame);
+                state.animationFrame = null;
+            }
+            state.elapsedBeforeRun = 0;
+            state.startTime = null;
+            state.isRunning = false;
+            state.autoStoppedAtThreshold = false;
+            state.activeDifferentials = [];
+            state.accumulatedStandard = 0;
+            state.accumulatedOvertime = 0;
+            state.accumulatedTotal = 0;
+            state.historyEntries = [];
+            state.historySessionStartedAt = null;
+            state.lastResetAt = Date.now();
+            saveHistory();
+            renderHistory();
+            updateDisplay();
+        }
+
+        function maybeResetAfterTwentyFourHours() {
+            if (Date.now() - state.lastResetAt >= state.dayMs) {
+                resetAllData();
+                return true;
+            }
+            return false;
+        }
+
+        // Helper: format time as hh:mm:ss so the clock remains readable.
+        function formatTime(seconds) {
+            const hrs = Math.floor(seconds / 3600);
+            const mins = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+
+        // Compute pay based on elapsed time and the combined effective rate.
+        function computePay(elapsedSeconds, rate) {
+            if (elapsedSeconds < 0) elapsedSeconds = 0;
+            const threshold = state.overtimeThreshold;
+            let standardSec = 0, overtimeSec = 0;
+
+            if (elapsedSeconds <= threshold) {
+                standardSec = elapsedSeconds;
+                overtimeSec = 0;
+            } else {
+                standardSec = threshold;
+                overtimeSec = elapsedSeconds - threshold;
+            }
+
+            const standardPay = (standardSec / 3600) * rate;
+            const overtimePay = (overtimeSec / 3600) * rate * state.overtimeMultiplier;
+            return { standardPay, overtimePay, totalPay: standardPay + overtimePay };
+        }
+
+        // Calculate elapsed time by adding the saved time to the active run's current progress.
+        function getElapsedSeconds() {
+            if (!state.isRunning || state.startTime === null) {
+                return state.elapsedBeforeRun;
+            }
+            const now = performance.now();
+            return state.elapsedBeforeRun + (now - state.startTime) / 1000;
+        }
+
+        // Combine the base rate with every selected differential to get the effective hourly rate.
+        function getEffectiveRate() {
+            const baseRate = parseFloat(rateInput.value);
+            const safeBaseRate = isNaN(baseRate) || baseRate < 0 ? 0 : baseRate;
+            const differentialTotal = state.activeDifferentials.reduce((sum, name) => {
+                if (name === 'personal vehicle') return sum;
+                const match = DIFFERENTIALS.find(item => item.name === name);
+                return sum + (match ? match.rate : 0);
+            }, 0);
+            return safeBaseRate + differentialTotal;
+        }
+
+        function calculateDistanceMiles(lat1, lon1, lat2, lon2) {
+            const R = 3958.8;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a =
+                Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        }
+
+        function setGpsStatus(message) {
+            state.gpsStatus = message;
+            if (gpsStatusLabel) {
+                gpsStatusLabel.textContent = `GPS: ${message}`;
+            }
+        }
+
+        function stopGpsTracking() {
+            if (state.gpsWatchId !== null && navigator.geolocation) {
+                navigator.geolocation.clearWatch(state.gpsWatchId);
+            }
+            state.gpsWatchId = null;
+            if (!state.activeDifferentials.includes('personal vehicle')) {
+                setGpsStatus('idle');
+            }
+        }
+
+        function handleGpsLocation(position) {
+            const { latitude, longitude, accuracy } = position.coords;
+            if (!state.gpsStartPosition) {
+                state.gpsStartPosition = { latitude, longitude };
+                state.gpsLastPosition = { latitude, longitude };
+                setGpsStatus(`tracking • ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+                return;
+            }
+
+            const segmentDistance = calculateDistanceMiles(
+                state.gpsLastPosition.latitude,
+                state.gpsLastPosition.longitude,
+                latitude,
+                longitude
+            );
+
+            if (segmentDistance > 0.005) {
+                state.milesDriven = Math.max(0, state.milesDriven + segmentDistance);
+            }
+
+            state.gpsLastPosition = { latitude, longitude };
+            setGpsStatus(`tracking • ${latitude.toFixed(4)}, ${longitude.toFixed(4)} • ±${Math.round(accuracy)}m`);
+        }
+
+        function handleGpsError(error) {
+            if (error.code === 1) {
+                setGpsStatus('permission denied');
+            } else if (error.code === 2) {
+                setGpsStatus('position unavailable');
+            } else {
+                setGpsStatus('timed out');
+            }
+        }
+
+        function ensureGpsTracking() {
+            if (!state.activeDifferentials.includes('personal vehicle')) {
+                stopGpsTracking();
+                return;
+            }
+            if (!state.isRunning) {
+                stopGpsTracking();
+                return;
+            }
+            if (!navigator.geolocation) {
+                setGpsStatus('not supported');
+                return;
+            }
+            if (state.gpsWatchId !== null) {
+                return;
+            }
+            state.gpsStartPosition = null;
+            state.gpsLastPosition = null;
+            state.milesDriven = 0;
+            setGpsStatus('waiting for GPS');
+            state.gpsWatchId = navigator.geolocation.watchPosition(
+                handleGpsLocation,
+                handleGpsError,
+                {
+                    enableHighAccuracy: true,
+                    maximumAge: 1000,
+                    timeout: 10000
+                }
+            );
+        }
+
+        function getPersonalVehiclePay() {
+            if (!state.activeDifferentials.includes('personal vehicle')) return 0;
+            if (state.gpsWatchId !== null) {
+                const mileageRate = parseFloat(mileageRateInput.value);
+                const safeMileageRate = isNaN(mileageRate) || mileageRate < 0 ? 0 : mileageRate;
+                state.mileageRate = safeMileageRate;
+                return state.milesDriven * safeMileageRate;
+            }
+            const mileageRate = parseFloat(mileageRateInput.value);
+            const milesDriven = parseFloat(milesDrivenInput.value);
+            const safeMileageRate = isNaN(mileageRate) || mileageRate < 0 ? 0 : mileageRate;
+            const safeMilesDriven = isNaN(milesDriven) || milesDriven < 0 ? 0 : milesDriven;
+            state.mileageRate = safeMileageRate;
+            state.milesDriven = safeMilesDriven;
+            return safeMilesDriven * safeMileageRate;
+        }
+
+        function autoStopAtThreshold(displaySec) {
+            if (!state.isRunning || displaySec < state.overtimeThreshold) return;
+            state.elapsedBeforeRun = displaySec;
+            state.isRunning = false;
+            state.autoStoppedAtThreshold = true;
+            finalizeCurrentSession('auto-stop');
+            if (state.animationFrame) {
+                cancelAnimationFrame(state.animationFrame);
+                state.animationFrame = null;
+            }
+        }
+
+        // update clock + pay display
+        function updateDisplay() {
+            // NEW: show the saved elapsed time even when the clock is paused.
+            const displaySec = Math.max(0, getElapsedSeconds());
+            autoStopAtThreshold(displaySec);
+            const currentDisplaySec = Math.max(0, getElapsedSeconds());
+            liveTimeDisplay.textContent = formatTime(currentDisplaySec);
+
+            // show seconds badge (flashing independent)
+            const secs = Math.floor(currentDisplaySec % 60);
+            secondsBadge.textContent = String(secs).padStart(2, '0');
+
+            // get rate from input (with fallback)
+            let rate = parseFloat(rateInput.value);
+            if (isNaN(rate) || rate < 0) rate = 0;
+            state.baseRate = rate;
+            const effectiveRate = getEffectiveRate();
+            if (effectiveRateLabel) {
+                effectiveRateLabel.textContent = `Effective rate: $${effectiveRate.toFixed(2)}/hr`;
+            }
+
+            // compute pay
+            const { standardPay, overtimePay, totalPay } = computePay(currentDisplaySec, effectiveRate);
+            const mileagePay = getPersonalVehiclePay();
+            const runningStandard = state.accumulatedStandard + standardPay;
+            const runningOvertime = state.accumulatedOvertime + overtimePay;
+            const runningTotal = runningStandard + runningOvertime + mileagePay;
+
+            if (mileagePanel) {
+                mileagePanel.hidden = !state.activeDifferentials.includes('personal vehicle');
+            }
+            if (mileagePayLabel) {
+                mileagePayLabel.textContent = `Vehicle pay: $${mileagePay.toFixed(2)}`;
+            }
+            if (state.gpsWatchId !== null) {
+                milesDrivenInput.value = state.milesDriven.toFixed(1);
+            }
+
+            // update pay fields
+            standardPayEl.textContent = runningStandard.toFixed(2);
+            overtimePayEl.textContent = runningOvertime.toFixed(2);
+            totalPayEl.textContent = runningTotal.toFixed(2);
+
+            // store totals for reset (optional)
+            state.totalStandard = runningStandard;
+            state.totalOvertime = runningOvertime;
+            state.accumulatedTotal = runningTotal;
+        }
+
+        // Keep the clock refreshed by asking the browser to redraw it each frame.
+        function animationLoop() {
+            updateDisplay();
+            state.animationFrame = requestAnimationFrame(animationLoop);
+        }
+
+        // Start the clock without losing any already counted time.
+        function startClock() {
+            if (state.isRunning) return;
+            if (state.autoStoppedAtThreshold) {
+                state.elapsedBeforeRun = 0;
+                state.autoStoppedAtThreshold = false;
+            }
+            if (!state.historySessionStartedAt || state.autoStoppedAtThreshold) {
+                state.historySessionStartedAt = Date.now();
+            }
+            state.isRunning = true;
+            state.startTime = performance.now();
+            ensureGpsTracking();
+            if (!state.animationFrame) {
+                animationLoop();
+            }
+            updateDisplay();
+        }
+
+        // Pause the clock while preserving the current elapsed time for later.
+        function stopClock() {
+            if (!state.isRunning) return;
+            state.elapsedBeforeRun = getElapsedSeconds();
+            state.isRunning = false;
+            stopGpsTracking();
+            if (state.animationFrame) {
+                cancelAnimationFrame(state.animationFrame);
+                state.animationFrame = null;
+            }
+            updateDisplay();
+        }
+
+        // Reset the timer back to zero while keeping the selected rate settings intact.
+        function resetClock() {
+            // NEW: clear the current elapsed time and restart from zero.
+            if (state.isRunning || state.elapsedBeforeRun > 0 || state.historySessionStartedAt) {
+                finalizeCurrentSession('manual-reset');
+            }
+            state.elapsedBeforeRun = 0;
+            state.startTime = state.isRunning ? performance.now() : null;
+            state.autoStoppedAtThreshold = false;
+            state.gpsStartPosition = null;
+            state.gpsLastPosition = null;
+            state.milesDriven = 0;
+            state.historySessionStartedAt = null;
+            stopGpsTracking();
+            if (state.isRunning && !state.animationFrame) {
+                animationLoop();
+            }
+            if (!state.isRunning) {
+                if (state.animationFrame) {
+                    cancelAnimationFrame(state.animationFrame);
+                    state.animationFrame = null;
+                }
+            }
+
+            // update rate from input (just in case)
+            const rate = parseFloat(rateInput.value);
+            if (!isNaN(rate) && rate >= 0) {
+                state.baseRate = rate;
+            }
+            updateDisplay();
+        }
+
+        // Render the available differentials as small cards and attach buttons to apply them.
+        function renderDifferentials() {
+            if (!differentialList || !differentialActions) return;
+            differentialList.innerHTML = '';
+            differentialActions.innerHTML = '';
+
+            DIFFERENTIALS.forEach(item => {
+                const valueItem = document.createElement('div');
+                valueItem.className = 'differential-item';
+                valueItem.innerHTML = `<strong>${item.name}</strong> · $${item.rate.toFixed(2)}/hr`;
+                differentialList.appendChild(valueItem);
+
+                const isApplied = state.activeDifferentials.includes(item.name);
+                const applyBtn = document.createElement('button');
+                applyBtn.type = 'button';
+                applyBtn.className = `apply-btn${isApplied ? ' active' : ''}`;
+                applyBtn.textContent = isApplied ? `Applied ${item.name}` : `Apply ${item.name}`;
+                applyBtn.addEventListener('click', () => {
+                    const index = state.activeDifferentials.indexOf(item.name);
+                    if (index >= 0) {
+                        state.activeDifferentials.splice(index, 1);
+                    } else {
+                        state.activeDifferentials.push(item.name);
+                    }
+                    renderDifferentials();
+                    ensureGpsTracking();
+                    updateDisplay();
+                });
+                differentialActions.appendChild(applyBtn);
+            });
+        }
+
+        // Keep the internal rate state aligned with the input field without resetting the timer.
+        function syncRateFromInput() {
+            const val = parseFloat(rateInput.value);
+            if (!isNaN(val) && val >= 0) {
+                state.baseRate = val;
+                // display will update on next frame
+            } else {
+                // if invalid, revert to last valid
+                rateInput.value = state.baseRate.toFixed(2);
+            }
+        }
+
+        // ----- event listeners -----
+        // The input listener reacts whenever the rate changes so the visible pay updates immediately.
+        rateInput.addEventListener('input', function() {
+            const val = parseFloat(this.value);
+            if (!isNaN(val) && val >= 0) {
+                state.baseRate = val;
+                // display updates via animation loop
+            } else {
+                // if user types something invalid, we keep old rate, but we don't override display
+                // we just show the old rate visually? we'll keep input as-is but pay uses old rate.
+                // but we want to be forgiving: if empty or negative, fallback to 0 but keep input value.
+                // we handle in updateDisplay: parsefloat again.
+                // we'll just re-parse in update, and if invalid, default to 0.
+                // BUT we also want to show the correct rate in input if it was invalid -> reset to previous
+                // we'll let updateDisplay handle rate, and if invalid we set input to previous good.
+                const currentRate = state.baseRate;
+                if (isNaN(val) || val < 0) {
+                    // revert to last good rate after a tiny delay (to not fight user)
+                    setTimeout(() => {
+                        if (isNaN(parseFloat(rateInput.value)) || parseFloat(rateInput.value) < 0) {
+                            rateInput.value = currentRate.toFixed(2);
+                        }
+                    }, 10);
+                }
+            }
+        });
+
+        [mileageRateInput, milesDrivenInput].forEach(input => {
+            input.addEventListener('input', updateDisplay);
+        });
+
+        // The start button turns the clock back on.
+        startBtn.addEventListener('click', function() {
+            startClock();
+        });
+
+        // The stop button pauses the clock without clearing the already counted time.
+        stopBtn.addEventListener('click', function() {
+            stopClock();
+        });
+
+        // The reset button clears the shift timer and starts from zero.
+        resetBtn.addEventListener('click', function() {
+            resetClock();
+        });
+
+        // Double-clicking the clock resets it as a small convenience feature.
+        liveTimeDisplay.addEventListener('dblclick', function() {
+            resetClock();
+        });
+
+        // Initialize the page with the default rate and a stopped clock state.
+        function init() {
+            // set rate input to default
+            rateInput.value = '25.00';
+            mileageRateInput.value = '0.67';
+            milesDrivenInput.value = '0';
+            state.baseRate = 25.00;
+            state.mileageRate = 0.67;
+            state.milesDriven = 0;
+            state.gpsStartPosition = null;
+            state.gpsLastPosition = null;
+            state.elapsedBeforeRun = 0;
+            state.isRunning = false;
+            state.startTime = null;
+            state.historyEntries = loadHistory();
+            state.lastResetAt = parseInt(localStorage.getItem(RESET_STORAGE_KEY) || String(state.lastResetAt), 10);
+            renderHistory();
+            setActiveView(state.activeView);
+            maybeResetAfterTwentyFourHours();
+            updateDisplay();
+        }
+
+        // Switching tabs does not need special handling because performance.now() remains accurate.
+
+        // Validate the rate when the input loses focus so the UI stays consistent.
+        rateInput.addEventListener('blur', function() {
+            let val = parseFloat(this.value);
+            if (isNaN(val) || val < 0) {
+                val = 0;
+                this.value = '0.00';
+            }
+            state.baseRate = val;
+            // ensure display updates
+        });
+
+        // Build the differential buttons and then show the initial UI state.
+        renderDifferentials();
+        init();
+
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => setActiveView(button.dataset.view));
+        });
+
+        // The animation loop already refreshes the display, so no extra logic is needed here.
+
+        // Cancel the animation frame when the page unloads so the browser can clean up safely.
+        window.addEventListener('beforeunload', function() {
+            if (state.animationFrame) {
+                cancelAnimationFrame(state.animationFrame);
+                state.animationFrame = null;
+            }
+        });
+
+        // provide a way to restart if needed (expose to console for fun)
+        window.__resetPayClock = resetClock;
+    })();
+</script>
+</body>
+</html>
